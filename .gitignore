@@ -1,0 +1,16 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Tooling cache
+.dotnet/
+.dotnet_cli/
+
+# Misc
+*.user
+*.swp
+.env
