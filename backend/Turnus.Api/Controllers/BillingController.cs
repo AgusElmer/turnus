@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Billing;
@@ -6,6 +7,7 @@ using Turnus.Api.Data;
 namespace Turnus.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class BillingController(TurnusDbContext dbContext) : ControllerBase
 {

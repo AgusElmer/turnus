@@ -26,6 +26,16 @@ Turnus.sln            -> Solución .NET
 Dockerfile(s)         -> backend/frontend/ para despliegue
 ```
 
+## Configuración inicial (.env)
+
+1. Copiá `.env.example` a `.env` y completa los valores:
+   - Credenciales de PostgreSQL (`POSTGRES_*`).
+   - `ConnectionStrings__Default` para que la API se conecte al contenedor de PostgreSQL.
+   - `Authentication__Google__ClientId` + `Authentication__Google__AllowedEmails__0` (uno por usuario permitido).
+   - `VITE_API_BASE_URL` y `VITE_GOOGLE_CLIENT_ID` para que el frontend apunte al backend y a tu OAuth client.
+   - En desarrollo podés dejar `VITE_AUTH_DISABLED=true` para saltar el login.
+2. (Opcional) crea `frontend/.env` si querés diferentes valores locales para Vite.
+
 ## Ejecutar en modo desarrollo
 
 ### API (.NET)
@@ -52,6 +62,8 @@ npm run dev # expone http://localhost:5173
 
 Configura `VITE_API_BASE_URL` en un archivo `.env` (por ejemplo `VITE_API_BASE_URL=http://localhost:8080`).
 
+Si vas a probar el login real, agrega también `VITE_GOOGLE_CLIENT_ID` y elimina `VITE_AUTH_DISABLED`.
+
 ### Base de datos y herramientas
 
 ```bash
@@ -59,6 +71,19 @@ docker compose up db pgadmin
 ```
 
 pgAdmin queda en `http://localhost:5050` (usuario `admin@example.com`, contraseña `admin1234`).
+
+## Autenticación con Google
+
+La API valida tokens de Google (ID Token) directamente. Pasos:
+
+1. Crea un proyecto en [Google Cloud Console](https://console.cloud.google.com/), habilita "OAuth consent screen" con tipo interno/externo.
+2. Crea credenciales "OAuth client ID" de tipo Web.
+3. Agrega como orígenes/URIs autorizados las URLs donde correrá el frontend (`http://localhost:5173`, `https://turnus.tu-dominio.com`, etc.).
+4. Copia el `Client ID` en `Authentication__Google__ClientId` y `VITE_GOOGLE_CLIENT_ID`.
+5. Lista los correos permitidos en `Authentication__Google__AllowedEmails__0`, `AllowedEmails__1`, etc. Las solicitudes rechazadas por la API responden 401.
+6. En producción deja `VITE_AUTH_DISABLED=false` para obligar al inicio de sesión.
+
+El backend aplica la política `[Authorize]` en todos los controladores y sólo acepta las cuentas configuradas. En desarrollo (sin ClientId) se usa un handler interno quick-start para no bloquearte.
 
 ## Docker Compose (todo el stack)
 
@@ -75,7 +100,7 @@ Servicios expuestos:
 - PostgreSQL: localhost:5432
 - pgAdmin: http://localhost:5050
 
-La API ejecuta migraciones automáticamente al iniciar y carga datos de ejemplo (paciente, prácticas y obras sociales).
+Antes de ejecutar, asegurate de tener `.env` con los secretos que usará `docker compose`. La API ejecuta migraciones automáticamente al iniciar. El seeding con datos ficticios sólo corre si `Database__SeedDemoData=true`.
 
 ## Migraciones EF Core
 
@@ -94,11 +119,10 @@ dotnet ef database update --project Turnus.Api/Turnus.Api.csproj --startup-proje
 
 ## Próximos pasos sugeridos
 
-1. **Autenticación**: incorporar Identity + JWT o un proveedor externo (Auth0/Azure AD B2C) según el entorno de despliegue.
-2. **Roles y permisos**: restringir acciones (ej. solo admins pueden borrar prácticas).
-3. **Estados avanzados**: admitir múltiples tipos de prácticas por turno, adjuntar archivos/comprobantes.
-4. **Reportes**: exportar a Excel o PDF los resúmenes mensuales.
-5. **Alertas**: enviar recordatorios por WhatsApp/mail usando un job scheduler (Hangfire/Quartz) o servicios externos.
-6. **Observabilidad**: añadir logs estructurados (Serilog) y métricas básicas.
+1. **Roles y permisos**: ahora que hay autenticación, definir si habrá usuarios sólo lectura vs. administradores.
+2. **Auditoría**: loguear cambios críticos (creación/borrado) con el email del usuario autenticado.
+3. **Reportes y exportaciones**: exportar resúmenes a Excel/PDF.
+4. **Alertas**: recordatorios por WhatsApp/mail usando servicios externos (Twilio, Sendgrid, etc.).
+5. **Observabilidad**: añadir logs estructurados (Serilog) y métricas básicas para monitorear la VM.
 
 Con esto ya puedes correr el entorno completo, practicar flujos típicos y seguir iterando con tecnología moderna.

@@ -9,7 +9,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-const today = new Date().toISOString().split("T")[0];
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value: string) {
+  const [rawDate] = value.split("T");
+  const [year, month, day] = rawDate.split("-").map((part) => Number.parseInt(part, 10));
+  const localDate = new Date(year, (month ?? 1) - 1, day ?? 1);
+  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(localDate);
+}
+
+function normalizeDatePayload(value: string) {
+  return value.split("T")[0];
+}
+
+const today = toDateInputValue(new Date());
 
 const statusOptions = [
   { value: "Scheduled", label: "Programada" },
@@ -119,7 +137,7 @@ export function AppointmentsPanel() {
       setUpdatingId(appointment.id);
       setError(null);
       const payload = {
-        serviceDate: appointment.serviceDate.split("T")[0],
+        serviceDate: normalizeDatePayload(appointment.serviceDate),
         status,
         insuranceProviderId: appointment.insuranceProviderId ?? undefined,
         customPrice: appointment.customPrice ?? undefined,
@@ -318,9 +336,7 @@ export function AppointmentsPanel() {
               <TableBody>
                 {appointments.map((appointment) => (
                   <TableRow key={appointment.id}>
-                    <TableCell>
-                      {new Date(appointment.serviceDate).toLocaleDateString("es-AR", { dateStyle: "medium" })}
-                    </TableCell>
+                    <TableCell>{formatDisplayDate(appointment.serviceDate)}</TableCell>
                     <TableCell className="font-medium">{appointment.patientName}</TableCell>
                     <TableCell>{appointment.practiceName}</TableCell>
                     <TableCell>{appointment.insuranceProviderName ?? "Particular"}</TableCell>

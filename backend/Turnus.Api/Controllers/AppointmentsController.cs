@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Appointments;
@@ -7,6 +8,7 @@ using Turnus.Api.Domain;
 namespace Turnus.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
 {
@@ -139,12 +141,8 @@ public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
         appointment.Status = request.Status;
         appointment.Notes = request.Notes;
         appointment.InsuranceProviderId = request.InsuranceProviderId;
-
-        if (request.CustomPrice.HasValue)
-        {
-            appointment.CustomPrice = request.CustomPrice;
-            appointment.BilledAmount = request.CustomPrice.Value;
-        }
+        appointment.CustomPrice = request.CustomPrice;
+        appointment.BilledAmount = request.CustomPrice ?? appointment.Practice.DefaultPrice;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

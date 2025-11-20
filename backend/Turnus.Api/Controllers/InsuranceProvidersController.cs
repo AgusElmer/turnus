@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Insurances;
@@ -7,6 +8,7 @@ using Turnus.Api.Domain;
 namespace Turnus.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class InsuranceProvidersController(TurnusDbContext dbContext) : ControllerBase
 {

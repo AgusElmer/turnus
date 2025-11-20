@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Patients;
@@ -7,6 +8,7 @@ using Turnus.Api.Domain;
 namespace Turnus.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/[controller]")]
 public class PatientsController(TurnusDbContext dbContext) : ControllerBase
 {

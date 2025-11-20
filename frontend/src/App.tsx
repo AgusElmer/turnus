@@ -5,6 +5,8 @@ import { PatientsPanel } from "@/features/patients/PatientsPanel";
 import { PracticesPanel } from "@/features/practices/PracticesPanel";
 import { InsurancesPanel } from "@/features/insurances/InsurancesPanel";
 import { BillingPanel } from "@/features/billing/BillingPanel";
+import { useAuth } from "@/features/auth/AuthContext";
+import { LoginScreen } from "@/features/auth/LoginScreen";
 
 const sections = [
   { id: "agenda", label: "Agenda", description: "Turnos del día", component: AppointmentsPanel },
@@ -15,8 +17,17 @@ const sections = [
 ] as const;
 
 export default function App() {
+  const { user, isAuthenticated, loading, logout, authDisabled } = useAuth();
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("agenda");
   const ActiveComponent = useMemo(() => sections.find((section) => section.id === activeSection)?.component ?? AppointmentsPanel, [activeSection]);
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Verificando sesión...</div>;
+  }
+
+  if (!isAuthenticated && !authDisabled) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-muted/20">
@@ -27,7 +38,7 @@ export default function App() {
             <h1 className="text-3xl font-semibold">Turnus</h1>
             <p className="text-muted-foreground">Organiza pacientes, prácticas y facturas en un solo lugar.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {sections.map((section) => (
               <Button
                 key={section.id}
@@ -37,6 +48,18 @@ export default function App() {
                 {section.label}
               </Button>
             ))}
+            {user && (
+              <div className="ml-2 flex items-center gap-3 rounded-full border px-3 py-1 text-sm">
+                {user.picture && <img src={user.picture} alt={user.name} className="h-8 w-8 rounded-full" />}
+                <div className="flex flex-col">
+                  <span className="font-medium leading-tight">{user.name}</span>
+                  <span className="text-xs text-muted-foreground">{user.email}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={logout}>
+                  Salir
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </header>

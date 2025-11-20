@@ -1,15 +1,52 @@
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
+let authToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+}
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
+function normalizeHeaders(input?: HeadersInit): Record<string, string> {
+  if (!input) {
+    return {};
+  }
+
+  if (input instanceof Headers) {
+    return Object.fromEntries(input.entries());
+  }
+
+  if (Array.isArray(input)) {
+    return Object.fromEntries(input);
+  }
+
+  return input;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...normalizeHeaders(init?.headers),
+  };
+
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
     ...init,
+    headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401 && unauthorizedHandler) {
+      unauthorizedHandler();
+    }
+
     const message = await response.text();
     throw new Error(message || `Error HTTP ${response.status}`);
   }

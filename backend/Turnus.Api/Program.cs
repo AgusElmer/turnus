@@ -1,5 +1,12 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Turnus.Api.Auth;
 using Turnus.Api.Data;
 using Turnus.Api.Seed;
 
@@ -21,17 +28,85 @@ builder.Services
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
 
+var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+var corsOrigins = configuredOrigins.Length > 0
+    ? configuredOrigins
+    : new[] { "http://localhost:5173", "http://127.0.0.1:5173" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("frontend", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://127.0.0.1:5173"
-            )
+        policy.WithOrigins(corsOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
+});
+
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var allowedEmailSet = (builder.Configuration.GetSection("Authentication:Google:AllowedEmails").Get<string[]>()
+        ?? Array.Empty<string>())
+    .Where(value => !string.IsNullOrWhiteSpace(value))
+    .Select(value => value.Trim())
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+var googleAuthEnabled = !string.IsNullOrWhiteSpace(googleClientId);
+
+if (googleAuthEnabled)
+{
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.Authority = "https://accounts.google.com";
+            options.RequireHttpsMetadata = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuers = new[] { "https://accounts.google.com", "accounts.google.com" },
+                ValidateAudience = true,
+                ValidAudience = googleClientId,
+                ValidateLifetime = true
+            };
+        });
+}
+else
+{
+    builder.Services
+        .AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
+        .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
+            DevelopmentAuthenticationHandler.SchemeName,
+            _ => { });
+}
+
+builder.Services.AddAuthorization(options =>
+{
+    var policyBuilder = googleAuthEnabled
+        ? new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
+        : new AuthorizationPolicyBuilder(DevelopmentAuthenticationHandler.SchemeName);
+
+    policyBuilder.RequireAuthenticatedUser();
+
+    if (googleAuthEnabled && allowedEmailSet.Count > 0)
+    {
+        policyBuilder.RequireAssertion(context =>
+        {
+            var email = context.User.FindFirst(ClaimTypes.Email)?.Value
+                        ?? context.User.FindFirst("email")?.Value;
+            return email is not null && allowedEmailSet.Contains(email);
+        });
+    }
+
+    var policy = policyBuilder.Build();
+    options.DefaultPolicy = policy;
+    options.FallbackPolicy = policy;
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -39,20 +114,34 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<TurnusDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await DatabaseSeeder.SeedAsync(dbContext, CancellationToken.None);
-}
+var shouldSeedDemoData = app.Configuration.GetValue("Database:SeedDemoData", app.Environment.IsDevelopment());
+
+app.UseExceptionHandler("/error");
+app.UseForwardedHeaders();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<TurnusDbContext>();
+    await dbContext.Database.MigrateAsync();
+    if (shouldSeedDemoData)
+    {
+        await DatabaseSeeder.SeedAsync(dbContext, CancellationToken.None);
+    }
+}
 
 app.UseCors("frontend");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

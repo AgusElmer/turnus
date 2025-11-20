@@ -3,9 +3,9 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: turnus
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-turnus}
     ports:
       - "5432:5432"
     volumes:
@@ -28,8 +28,12 @@ services:
       dockerfile: backend/Turnus.Api/Dockerfile
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Default: Host=db;Port=5432;Database=turnus;Username=postgres;Password=postgres
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Default: ${ConnectionStrings__Default:-Host=db;Port=5432;Database=turnus;Username=postgres;Password=postgres}
+      Authentication__Google__ClientId: ${Authentication__Google__ClientId:-}
+      Authentication__Google__AllowedEmails__0: ${Authentication__Google__AllowedEmails__0:-}
+      Authentication__Google__AllowedEmails__1: ${Authentication__Google__AllowedEmails__1:-}
+      Database__SeedDemoData: ${Database__SeedDemoData:-true}
     ports:
       - "8080:8080"
     depends_on:
@@ -40,7 +44,9 @@ services:
       context: frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:8080
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_AUTH_DISABLED: ${VITE_AUTH_DISABLED:-false}
     restart: unless-stopped
     ports:
       - "5173:80"
