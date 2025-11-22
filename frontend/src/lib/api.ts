@@ -141,12 +141,14 @@ export const api = {
     request<Patient>("/api/patients", { method: "POST", body: JSON.stringify(payload) }),
   updatePatient: (id: number, payload: Partial<Patient>) =>
     request<Patient>(`/api/patients/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deletePatient: (id: number) => request<void>(`/api/patients/${id}`, { method: "DELETE" }),
 
   getPractices: () => request<Practice[]>("/api/practices"),
   createPractice: (payload: Partial<Practice>) =>
     request<Practice>("/api/practices", { method: "POST", body: JSON.stringify(payload) }),
   updatePractice: (id: number, payload: Partial<Practice>) =>
     request<Practice>(`/api/practices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deletePractice: (id: number) => request<void>(`/api/practices/${id}`, { method: "DELETE" }),
   updatePracticePrices: (id: number, payload: { insuranceProviderId: number | null; price: number }[]) =>
     request<PracticePrice[]>(`/api/practices/${id}/prices`, {
       method: "PUT",
@@ -158,6 +160,7 @@ export const api = {
     request<InsuranceProvider>("/api/insuranceproviders", { method: "POST", body: JSON.stringify(payload) }),
   updateInsurance: (id: number, payload: Partial<InsuranceProvider>) =>
     request<InsuranceProvider>(`/api/insuranceproviders/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  deleteInsurance: (id: number) => request<void>(`/api/insuranceproviders/${id}`, { method: "DELETE" }),
 
   getAppointments: (query: URLSearchParams) => request<Appointment[]>(`/api/appointments?${query.toString()}`),
   createAppointment: (payload: Record<string, unknown>) =>

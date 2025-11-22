@@ -1,17 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, type BillingProviderSummaryDto, type BillingSummaryDto } from "@/lib/api";
+import { useMemo } from "react";
+import { type BillingProviderSummaryDto } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useBillingSummary } from "./hooks/useBillingSummary";
 
 const now = new Date();
 const initialMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
 export function BillingPanel() {
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
-  const [summary, setSummary] = useState<BillingSummaryDto | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { summary, loading, error, selectedMonth, setSelectedMonth } = useBillingSummary(initialMonth);
 
   const providerList = useMemo(() => summary?.providers ?? [], [summary]);
   const practiceTotals = useMemo(() => {
@@ -41,26 +39,6 @@ export function BillingPanel() {
       .filter((item) => item.amount > 0)
       .sort((a, b) => b.amount - a.amount);
   }, [summary]);
-
-  const loadSummary = useCallback(async () => {
-    if (!selectedMonth) return;
-    const [year, month] = selectedMonth.split("-").map((value) => Number(value));
-
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await api.getBillingSummary(year, month);
-      setSummary(response);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo calcular la facturación");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedMonth]);
-
-  useEffect(() => {
-    void loadSummary();
-  }, [loadSummary]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
