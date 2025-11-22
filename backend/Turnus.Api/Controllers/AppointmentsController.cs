@@ -1,18 +1,29 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Appointments;
-using Turnus.Api.Data;
-using Turnus.Api.Domain;
+using Turnus.Api.Services;
 
 namespace Turnus.Api.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
+public class AppointmentsController : ControllerBase
 {
-    private readonly TurnusDbContext _dbContext = dbContext;
+    private readonly IAppointmentService _appointmentService;
+    private readonly IValidator<CreateAppointmentRequest> _createValidator;
+    private readonly IValidator<UpdateAppointmentRequest> _updateValidator;
+
+    public AppointmentsController(
+        IAppointmentService appointmentService,
+        IValidator<CreateAppointmentRequest> createValidator,
+        IValidator<UpdateAppointmentRequest> updateValidator)
+    {
+        _appointmentService = appointmentService;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AppointmentDto>>> GetAsync(
@@ -21,174 +32,47 @@ public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
         [FromQuery] int? insuranceProviderId,
         CancellationToken cancellationToken)
     {
-        var query = _dbContext.Appointments
-            .Include(a => a.Patient)
-            .Include(a => a.Practice)
-            .Include(a => a.InsuranceProvider)
-            .AsNoTracking()
-            .AsQueryable();
-
-        if (from.HasValue)
-        {
-            query = query.Where(a => a.ServiceDate >= from.Value);
-        }
-
-        if (to.HasValue)
-        {
-            query = query.Where(a => a.ServiceDate <= to.Value);
-        }
-
-        if (insuranceProviderId.HasValue)
-        {
-            query = query.Where(a => a.InsuranceProviderId == insuranceProviderId.Value);
-        }
-
-        var appointments = await query
-            .OrderBy(a => a.ServiceDate)
-            .ThenBy(a => a.Patient.LastName)
-            .ToListAsync(cancellationToken);
-
+        var appointments = await _appointmentService.GetAppointmentsAsync(from, to, insuranceProviderId, cancellationToken);
         return Ok(appointments.Select(AppointmentDto.FromEntity));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<AppointmentDto>> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
-        var appointment = await _dbContext.Appointments
-            .Include(a => a.Patient)
-            .Include(a => a.Practice)
-            .Include(a => a.InsuranceProvider)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-
+        var appointment = await _appointmentService.GetAppointmentByIdAsync(id, cancellationToken);
         return appointment is null ? NotFound() : Ok(AppointmentDto.FromEntity(appointment));
     }
 
     [HttpPost]
     public async Task<ActionResult<AppointmentDto>> CreateAsync(CreateAppointmentRequest request, CancellationToken cancellationToken)
     {
-        var patient = await _dbContext.Patients.FirstOrDefaultAsync(p => p.Id == request.PatientId, cancellationToken);
-        if (patient is null)
+        var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return BadRequest("Patient not found.");
+            return BadRequest(validationResult.Errors);
         }
 
-        var practice = await _dbContext.Practices.FirstOrDefaultAsync(p => p.Id == request.PracticeId, cancellationToken);
-        if (practice is null)
-        {
-            return BadRequest("Practice not found.");
-        }
-
-        if (request.InsuranceProviderId.HasValue)
-        {
-            var insuranceExists = await _dbContext.InsuranceProviders
-                .AnyAsync(i => i.Id == request.InsuranceProviderId.Value, cancellationToken);
-            if (!insuranceExists)
-            {
-                return BadRequest("Insurance provider not found.");
-            }
-        }
-
-        int? appointmentInsuranceProviderId = request.UsePatientInsurance ? (request.InsuranceProviderId ?? patient.InsuranceProviderId) : null;
-        var billedAmount = request.CustomPrice ?? await ResolveBasePriceAsync(practice.Id, appointmentInsuranceProviderId, cancellationToken);
-
-        var appointment = new Appointment
-        {
-            PatientId = request.PatientId,
-            PracticeId = request.PracticeId,
-            InsuranceProviderId = appointmentInsuranceProviderId,
-            ServiceDate = request.ServiceDate,
-            Status = request.Status,
-            CustomPrice = request.CustomPrice,
-            BilledAmount = billedAmount,
-            Notes = request.Notes
-        };
-
-        _dbContext.Appointments.Add(appointment);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        await _dbContext.Entry(appointment).Reference(a => a.Patient).LoadAsync(cancellationToken);
-        await _dbContext.Entry(appointment).Reference(a => a.Practice).LoadAsync(cancellationToken);
-        await _dbContext.Entry(appointment).Reference(a => a.InsuranceProvider).LoadAsync(cancellationToken);
-
+        var appointment = await _appointmentService.CreateAppointmentAsync(request, cancellationToken);
         return Created($"/api/appointments/{appointment.Id}", AppointmentDto.FromEntity(appointment));
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<AppointmentDto>> UpdateAsync(int id, UpdateAppointmentRequest request, CancellationToken cancellationToken)
     {
-        var appointment = await _dbContext.Appointments
-            .Include(a => a.Patient)
-            .Include(a => a.Practice)
-            .Include(a => a.InsuranceProvider)
-            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
-
-        if (appointment is null)
+        var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return NotFound();
+            return BadRequest(validationResult.Errors);
         }
 
-        if (request.InsuranceProviderId.HasValue)
-        {
-            var insuranceExists = await _dbContext.InsuranceProviders
-                .AnyAsync(i => i.Id == request.InsuranceProviderId.Value, cancellationToken);
-            if (!insuranceExists)
-            {
-                return BadRequest("Insurance provider not found.");
-            }
-        }
-
-        appointment.ServiceDate = request.ServiceDate;
-        appointment.Status = request.Status;
-        appointment.Notes = request.Notes;
-        appointment.InsuranceProviderId = request.UsePatientInsurance ? (request.InsuranceProviderId ?? appointment.Patient.InsuranceProviderId) : null;
-        appointment.CustomPrice = request.CustomPrice;
-        appointment.BilledAmount = request.CustomPrice ?? await ResolveBasePriceAsync(appointment.PracticeId, appointment.InsuranceProviderId, cancellationToken);
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(AppointmentDto.FromEntity(appointment));
+        var appointment = await _appointmentService.UpdateAppointmentAsync(id, request, cancellationToken);
+        return appointment is null ? NotFound() : Ok(AppointmentDto.FromEntity(appointment));
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var appointment = await _dbContext.Appointments.FindAsync([id], cancellationToken);
-        if (appointment is null)
-        {
-            return NotFound();
-        }
-
-        _dbContext.Appointments.Remove(appointment);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return NoContent();
-    }
-
-    private async Task<decimal> ResolveBasePriceAsync(int practiceId, int? insuranceProviderId, CancellationToken cancellationToken)
-    {
-        var exactMatch = await _dbContext.PracticePrices
-            .Where(price => price.PracticeId == practiceId && price.InsuranceProviderId == insuranceProviderId)
-            .Select(price => (decimal?)price.Price)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (exactMatch.HasValue)
-        {
-            return exactMatch.Value;
-        }
-
-        var defaultMatch = await _dbContext.PracticePrices
-            .Where(price => price.PracticeId == practiceId && price.InsuranceProviderId == null)
-            .Select(price => (decimal?)price.Price)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (defaultMatch.HasValue)
-        {
-            return defaultMatch.Value;
-        }
-
-        return await _dbContext.Practices
-            .Where(practice => practice.Id == practiceId)
-            .Select(practice => practice.DefaultPrice)
-            .FirstAsync(cancellationToken);
+        var result = await _appointmentService.DeleteAppointmentAsync(id, cancellationToken);
+        return result ? NoContent() : NotFound();
     }
 }

@@ -1,139 +1,83 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Patients;
-using Turnus.Api.Data;
-using Turnus.Api.Domain;
+using Turnus.Api.Services;
 
 namespace Turnus.Api.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class PatientsController(TurnusDbContext dbContext) : ControllerBase
+public class PatientsController : ControllerBase
 {
-    private readonly TurnusDbContext _dbContext = dbContext;
+    private readonly IPatientService _patientService;
+    private readonly IValidator<CreatePatientRequest> _createValidator;
+    private readonly IValidator<UpdatePatientRequest> _updateValidator;
+
+    public PatientsController(
+        IPatientService patientService,
+        IValidator<CreatePatientRequest> createValidator,
+        IValidator<UpdatePatientRequest> updateValidator)
+    {
+        _patientService = patientService;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<PatientDto>>> GetPatientsAsync(CancellationToken cancellationToken)
     {
-        var patients = await _dbContext.Patients
-            .Include(p => p.InsuranceProvider)
-            .AsNoTracking()
-            .OrderBy(p => p.LastName)
-            .ThenBy(p => p.FirstName)
-            .ToListAsync(cancellationToken);
-
+        var patients = await _patientService.GetPatientsAsync(cancellationToken);
         return Ok(patients.Select(PatientDto.FromEntity));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PatientDto>> GetPatientByIdAsync(int id, CancellationToken cancellationToken)
     {
-        var patient = await _dbContext.Patients
-            .Include(p => p.InsuranceProvider)
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
-
+        var patient = await _patientService.GetPatientByIdAsync(id, cancellationToken);
         return patient is null ? NotFound() : Ok(PatientDto.FromEntity(patient));
     }
 
     [HttpPost]
     public async Task<ActionResult<PatientDto>> CreatePatientAsync(CreatePatientRequest request, CancellationToken cancellationToken)
     {
-        if (!await IsInsuranceValidAsync(request.InsuranceProviderId, cancellationToken))
+        var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return BadRequest("Invalid insurance provider.");
+            return BadRequest(validationResult.Errors);
         }
 
-        var dniExists = await _dbContext.Patients.AnyAsync(p => p.Dni == request.Dni, cancellationToken);
-        if (dniExists)
-        {
-            return Conflict($"Patient with DNI {request.Dni} already exists.");
-        }
-
-        var patient = new Patient
-        {
-            FirstName = request.FirstName.Trim(),
-            LastName = request.LastName.Trim(),
-            Dni = request.Dni.Trim(),
-            PhoneNumber = request.PhoneNumber?.Trim(),
-            Email = request.Email?.Trim(),
-            InsuranceProviderId = request.InsuranceProviderId
-        };
-
-        _dbContext.Patients.Add(patient);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        await _dbContext.Entry(patient).Reference(p => p.InsuranceProvider).LoadAsync(cancellationToken);
-
+        var patient = await _patientService.CreatePatientAsync(request, cancellationToken);
         return Created($"/api/patients/{patient.Id}", PatientDto.FromEntity(patient));
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<PatientDto>> UpdatePatientAsync(int id, UpdatePatientRequest request, CancellationToken cancellationToken)
     {
-        var patient = await _dbContext.Patients.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
-        if (patient is null)
+        var context = new ValidationContext<UpdatePatientRequest>(request);
+        context.RootContextData["id"] = id;
+        var validationResult = await _updateValidator.ValidateAsync(context, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return NotFound();
+            return BadRequest(validationResult.Errors);
         }
 
-        if (!await IsInsuranceValidAsync(request.InsuranceProviderId, cancellationToken))
-        {
-            return BadRequest("Invalid insurance provider.");
-        }
-
-        var dniExists = await _dbContext.Patients
-            .AnyAsync(p => p.Id != id && p.Dni == request.Dni, cancellationToken);
-        if (dniExists)
-        {
-            return Conflict($"Another patient already uses DNI {request.Dni}.");
-        }
-
-        patient.FirstName = request.FirstName.Trim();
-        patient.LastName = request.LastName.Trim();
-        patient.Dni = request.Dni.Trim();
-        patient.PhoneNumber = request.PhoneNumber?.Trim();
-        patient.Email = request.Email?.Trim();
-        patient.InsuranceProviderId = request.InsuranceProviderId;
-        patient.IsActive = request.IsActive;
-        patient.UpdatedAtUtc = DateTime.UtcNow;
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        await _dbContext.Entry(patient).Reference(p => p.InsuranceProvider).LoadAsync(cancellationToken);
-
-        return Ok(PatientDto.FromEntity(patient));
+        var patient = await _patientService.UpdatePatientAsync(id, request, cancellationToken);
+        return patient is null ? NotFound() : Ok(PatientDto.FromEntity(patient));
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeletePatientAsync(int id, CancellationToken cancellationToken)
     {
-        var patient = await _dbContext.Patients.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
-        if (patient is null)
+        try
         {
-            return NotFound();
+            var result = await _patientService.DeletePatientAsync(id, cancellationToken);
+            return result ? NoContent() : NotFound();
         }
-
-        var hasAppointments = await _dbContext.Appointments.AnyAsync(a => a.PatientId == id, cancellationToken);
-        if (hasAppointments)
+        catch (InvalidOperationException ex)
         {
-            return Conflict("The patient has appointments assigned. Disable it instead of deleting.");
+            return Conflict(ex.Message);
         }
-
-        _dbContext.Patients.Remove(patient);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return NoContent();
-    }
-
-    private async Task<bool> IsInsuranceValidAsync(int? insuranceId, CancellationToken cancellationToken)
-    {
-        if (insuranceId is null)
-        {
-            return true;
-        }
-
-        return await _dbContext.InsuranceProviders
-            .AnyAsync(i => i.Id == insuranceId && i.IsActive, cancellationToken);
     }
 }

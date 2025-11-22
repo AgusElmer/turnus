@@ -1,95 +1,81 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Insurances;
-using Turnus.Api.Data;
-using Turnus.Api.Domain;
+using Turnus.Api.Services;
 
 namespace Turnus.Api.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/[controller]")]
-public class InsuranceProvidersController(TurnusDbContext dbContext) : ControllerBase
+public class InsuranceProvidersController : ControllerBase
 {
-    private readonly TurnusDbContext _dbContext = dbContext;
+    private readonly IInsuranceProviderService _insuranceProviderService;
+    private readonly IValidator<CreateInsuranceProviderRequest> _createValidator;
+    private readonly IValidator<UpdateInsuranceProviderRequest> _updateValidator;
+
+    public InsuranceProvidersController(
+        IInsuranceProviderService insuranceProviderService,
+        IValidator<CreateInsuranceProviderRequest> createValidator,
+        IValidator<UpdateInsuranceProviderRequest> updateValidator)
+    {
+        _insuranceProviderService = insuranceProviderService;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+    }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<InsuranceProviderDto>>> GetAsync(CancellationToken cancellationToken)
     {
-        var providers = await _dbContext.InsuranceProviders
-            .AsNoTracking()
-            .OrderBy(i => i.Name)
-            .ToListAsync(cancellationToken);
-
+        var providers = await _insuranceProviderService.GetInsuranceProvidersAsync(cancellationToken);
         return Ok(providers.Select(InsuranceProviderDto.FromEntity));
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<InsuranceProviderDto>> GetByIdAsync(int id, CancellationToken cancellationToken)
     {
-        var provider = await _dbContext.InsuranceProviders.FindAsync([id], cancellationToken);
+        var provider = await _insuranceProviderService.GetInsuranceProviderByIdAsync(id, cancellationToken);
         return provider is null ? NotFound() : Ok(InsuranceProviderDto.FromEntity(provider));
     }
 
     [HttpPost]
     public async Task<ActionResult<InsuranceProviderDto>> CreateAsync(CreateInsuranceProviderRequest request, CancellationToken cancellationToken)
     {
-        var provider = new InsuranceProvider
+        var validationResult = await _createValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            Name = request.Name.Trim(),
-            BillingCode = request.BillingCode?.Trim(),
-            ContactEmail = request.ContactEmail?.Trim(),
-            ContactPhone = request.ContactPhone?.Trim(),
-            Notes = request.Notes?.Trim()
-        };
+            return BadRequest(validationResult.Errors);
+        }
 
-        _dbContext.InsuranceProviders.Add(provider);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
+        var provider = await _insuranceProviderService.CreateInsuranceProviderAsync(request, cancellationToken);
         return Created($"/api/insuranceproviders/{provider.Id}", InsuranceProviderDto.FromEntity(provider));
     }
 
     [HttpPut("{id:int}")]
     public async Task<ActionResult<InsuranceProviderDto>> UpdateAsync(int id, UpdateInsuranceProviderRequest request, CancellationToken cancellationToken)
     {
-        var provider = await _dbContext.InsuranceProviders.FindAsync([id], cancellationToken);
-        if (provider is null)
+        var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
+        if (!validationResult.IsValid)
         {
-            return NotFound();
+            return BadRequest(validationResult.Errors);
         }
 
-        provider.Name = request.Name.Trim();
-        provider.BillingCode = request.BillingCode?.Trim();
-        provider.ContactEmail = request.ContactEmail?.Trim();
-        provider.ContactPhone = request.ContactPhone?.Trim();
-        provider.Notes = request.Notes?.Trim();
-        provider.IsActive = request.IsActive;
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return Ok(InsuranceProviderDto.FromEntity(provider));
+        var provider = await _insuranceProviderService.UpdateInsuranceProviderAsync(id, request, cancellationToken);
+        return provider is null ? NotFound() : Ok(InsuranceProviderDto.FromEntity(provider));
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var provider = await _dbContext.InsuranceProviders.FindAsync([id], cancellationToken);
-        if (provider is null)
+        try
         {
-            return NotFound();
+            var result = await _insuranceProviderService.DeleteInsuranceProviderAsync(id, cancellationToken);
+            return result ? NoContent() : NotFound();
         }
-
-        var inUse = await _dbContext.Patients.AnyAsync(p => p.InsuranceProviderId == id, cancellationToken)
-                     || await _dbContext.Appointments.AnyAsync(a => a.InsuranceProviderId == id, cancellationToken);
-
-        if (inUse)
+        catch (InvalidOperationException ex)
         {
-            return Conflict("The insurance provider is referenced by patients or appointments. Disable it instead.");
+            return Conflict(ex.Message);
         }
-
-        _dbContext.InsuranceProviders.Remove(provider);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return NoContent();
     }
 }
