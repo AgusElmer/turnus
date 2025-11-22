@@ -12,4 +12,5 @@ public class InsuranceProvider
 
     public ICollection<Patient> Patients { get; } = new List<Patient>();
     public ICollection<Appointment> Appointments { get; } = new List<Appointment>();
+    public ICollection<PracticePrice> PracticePrices { get; } = new List<PracticePrice>();
 }

@@ -4,7 +4,7 @@ public class Appointment
 {
     public int Id { get; set; }
     public DateOnly ServiceDate { get; set; }
-    public AppointmentStatus Status { get; set; } = AppointmentStatus.Scheduled;
+    public AppointmentStatus Status { get; set; } = AppointmentStatus.Completed;
     public decimal? CustomPrice { get; set; }
     public decimal BilledAmount { get; set; }
     public string? Notes { get; set; }

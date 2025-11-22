@@ -78,6 +78,15 @@ export interface Practice {
   description?: string | null;
   defaultPrice: number;
   isActive: boolean;
+  prices: PracticePrice[];
+}
+
+export interface PracticePrice {
+  id: number;
+  practiceId: number;
+  insuranceProviderId: number | null;
+  insuranceProviderName: string | null;
+  price: number;
 }
 
 export interface InsuranceProvider {
@@ -138,6 +147,11 @@ export const api = {
     request<Practice>("/api/practices", { method: "POST", body: JSON.stringify(payload) }),
   updatePractice: (id: number, payload: Partial<Practice>) =>
     request<Practice>(`/api/practices/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  updatePracticePrices: (id: number, payload: { insuranceProviderId: number | null; price: number }[]) =>
+    request<PracticePrice[]>(`/api/practices/${id}/prices`, {
+      method: "PUT",
+      body: JSON.stringify({ prices: payload }),
+    }),
 
   getInsurances: () => request<InsuranceProvider[]>("/api/insuranceproviders"),
   createInsurance: (payload: Partial<InsuranceProvider>) =>

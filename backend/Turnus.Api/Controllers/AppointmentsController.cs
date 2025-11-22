@@ -89,13 +89,14 @@ public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
             }
         }
 
-        var billedAmount = request.CustomPrice ?? practice.DefaultPrice;
+        int? appointmentInsuranceProviderId = request.UsePatientInsurance ? (request.InsuranceProviderId ?? patient.InsuranceProviderId) : null;
+        var billedAmount = request.CustomPrice ?? await ResolveBasePriceAsync(practice.Id, appointmentInsuranceProviderId, cancellationToken);
 
         var appointment = new Appointment
         {
             PatientId = request.PatientId,
             PracticeId = request.PracticeId,
-            InsuranceProviderId = request.InsuranceProviderId ?? patient.InsuranceProviderId,
+            InsuranceProviderId = appointmentInsuranceProviderId,
             ServiceDate = request.ServiceDate,
             Status = request.Status,
             CustomPrice = request.CustomPrice,
@@ -140,9 +141,9 @@ public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
         appointment.ServiceDate = request.ServiceDate;
         appointment.Status = request.Status;
         appointment.Notes = request.Notes;
-        appointment.InsuranceProviderId = request.InsuranceProviderId;
+        appointment.InsuranceProviderId = request.UsePatientInsurance ? (request.InsuranceProviderId ?? appointment.Patient.InsuranceProviderId) : null;
         appointment.CustomPrice = request.CustomPrice;
-        appointment.BilledAmount = request.CustomPrice ?? appointment.Practice.DefaultPrice;
+        appointment.BilledAmount = request.CustomPrice ?? await ResolveBasePriceAsync(appointment.PracticeId, appointment.InsuranceProviderId, cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
@@ -161,5 +162,33 @@ public class AppointmentsController(TurnusDbContext dbContext) : ControllerBase
         _dbContext.Appointments.Remove(appointment);
         await _dbContext.SaveChangesAsync(cancellationToken);
         return NoContent();
+    }
+
+    private async Task<decimal> ResolveBasePriceAsync(int practiceId, int? insuranceProviderId, CancellationToken cancellationToken)
+    {
+        var exactMatch = await _dbContext.PracticePrices
+            .Where(price => price.PracticeId == practiceId && price.InsuranceProviderId == insuranceProviderId)
+            .Select(price => (decimal?)price.Price)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (exactMatch.HasValue)
+        {
+            return exactMatch.Value;
+        }
+
+        var defaultMatch = await _dbContext.PracticePrices
+            .Where(price => price.PracticeId == practiceId && price.InsuranceProviderId == null)
+            .Select(price => (decimal?)price.Price)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (defaultMatch.HasValue)
+        {
+            return defaultMatch.Value;
+        }
+
+        return await _dbContext.Practices
+            .Where(practice => practice.Id == practiceId)
+            .Select(practice => practice.DefaultPrice)
+            .FirstAsync(cancellationToken);
     }
 }

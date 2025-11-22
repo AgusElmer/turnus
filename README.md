@@ -102,6 +102,12 @@ Servicios expuestos:
 
 Antes de ejecutar, asegurate de tener `.env` con los secretos que usará `docker compose`. La API ejecuta migraciones automáticamente al iniciar. El seeding con datos ficticios sólo corre si `Database__SeedDemoData=true`.
 
+## Gestión de precios por obra social
+
+- Cada práctica define un valor "Particular" (sin obra social) y montos específicos por obra social.
+- Desde el panel de Prácticas podés editar todos los valores: seleccioná una práctica y completa la tabla con los importes correspondientes.
+- Al crear turnos, la API calcula automáticamente el precio base usando la combinación práctica/obra social; si no hay valor definido, usa el monto particular.
+
 ## Migraciones EF Core
 
 ```bash

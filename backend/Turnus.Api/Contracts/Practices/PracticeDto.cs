@@ -8,7 +8,8 @@ public record PracticeDto(
     string BillingCode,
     string? Description,
     decimal DefaultPrice,
-    bool IsActive
+    bool IsActive,
+    IReadOnlyCollection<PracticePriceDto> Prices
 )
 {
     public static PracticeDto FromEntity(Practice practice) => new(
@@ -17,6 +18,10 @@ public record PracticeDto(
         practice.BillingCode,
         practice.Description,
         practice.DefaultPrice,
-        practice.IsActive
+        practice.IsActive,
+        practice.Prices
+            .OrderBy(p => p.InsuranceProviderId ?? int.MaxValue)
+            .Select(PracticePriceDto.FromEntity)
+            .ToList()
     );
 }

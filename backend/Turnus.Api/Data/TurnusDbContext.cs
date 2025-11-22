@@ -9,6 +9,7 @@ public class TurnusDbContext(DbContextOptions<TurnusDbContext> options) : DbCont
     public DbSet<Practice> Practices => Set<Practice>();
     public DbSet<InsuranceProvider> InsuranceProviders => Set<InsuranceProvider>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<PracticePrice> PracticePrices => Set<PracticePrice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,6 +38,22 @@ public class TurnusDbContext(DbContextOptions<TurnusDbContext> options) : DbCont
             entity.Property(p => p.Name).HasMaxLength(120).IsRequired();
             entity.Property(p => p.BillingCode).HasMaxLength(40).IsRequired();
             entity.Property(p => p.DefaultPrice).HasColumnType("numeric(10,2)");
+        });
+
+        modelBuilder.Entity<PracticePrice>(entity =>
+        {
+            entity.Property(p => p.Price).HasColumnType("numeric(10,2)").IsRequired();
+            entity.HasIndex(p => new { p.PracticeId, p.InsuranceProviderId }).IsUnique();
+
+            entity.HasOne(p => p.Practice)
+                .WithMany(practice => practice.Prices)
+                .HasForeignKey(p => p.PracticeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.InsuranceProvider)
+                .WithMany(provider => provider.PracticePrices)
+                .HasForeignKey(p => p.InsuranceProviderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Appointment>(entity =>

@@ -10,4 +10,5 @@ public class Practice
     public bool IsActive { get; set; } = true;
 
     public ICollection<Appointment> Appointments { get; } = new List<Appointment>();
+    public ICollection<PracticePrice> Prices { get; } = new List<PracticePrice>();
 }

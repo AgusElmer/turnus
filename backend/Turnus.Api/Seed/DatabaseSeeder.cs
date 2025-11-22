@@ -54,6 +54,28 @@ public static class DatabaseSeeder
 
         dbContext.Practices.AddRange(echo, consult);
 
+        var insuranceList = new[] { swiss, osde, galeno };
+
+        foreach (var practice in new[] { echo, consult })
+        {
+            dbContext.PracticePrices.Add(new PracticePrice
+            {
+                Practice = practice,
+                Price = practice.DefaultPrice,
+                InsuranceProvider = null
+            });
+
+            foreach (var insurance in insuranceList)
+            {
+                dbContext.PracticePrices.Add(new PracticePrice
+                {
+                    Practice = practice,
+                    InsuranceProvider = insurance,
+                    Price = practice.DefaultPrice * (insurance == osde ? 1.1m : insurance == galeno ? 0.95m : 1.05m)
+                });
+            }
+        }
+
         var patient = new Patient
         {
             FirstName = "Maria",

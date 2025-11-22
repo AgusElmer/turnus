@@ -30,8 +30,8 @@ function normalizeDatePayload(value: string) {
 const today = toDateInputValue(new Date());
 
 const statusOptions = [
-  { value: "Scheduled", label: "Programada" },
   { value: "Completed", label: "Realizada" },
+  { value: "Scheduled", label: "Programada" },
   { value: "Cancelled", label: "Cancelada" },
 ] as const;
 
@@ -54,12 +54,14 @@ export function AppointmentsPanel() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({ from: today, to: today, insuranceProviderId: "" });
+  const particularOptionValue = "particular";
+
   const [form, setForm] = useState({
     patientId: "",
     practiceId: "",
     insuranceProviderId: "",
     serviceDate: today,
-    status: "Scheduled",
+    status: "Completed",
     customPrice: "",
     notes: "",
   });
@@ -113,18 +115,25 @@ export function AppointmentsPanel() {
     try {
       setSaving(true);
       setError(null);
+      const usePatientInsurance = form.insuranceProviderId !== particularOptionValue;
+      const insuranceProviderId =
+        form.insuranceProviderId === "" || form.insuranceProviderId === particularOptionValue
+          ? undefined
+          : Number(form.insuranceProviderId);
+
       const payload = {
         patientId: Number(form.patientId),
         practiceId: Number(form.practiceId),
         serviceDate: form.serviceDate,
         status: form.status,
         notes: form.notes || undefined,
-        insuranceProviderId: form.insuranceProviderId ? Number(form.insuranceProviderId) : undefined,
+        insuranceProviderId,
+        usePatientInsurance,
         customPrice: form.customPrice ? Number(form.customPrice) : undefined,
       };
       const created = await api.createAppointment(payload);
       setAppointments((prev) => [created, ...prev]);
-      setForm((prev) => ({ ...prev, notes: "", customPrice: "" }));
+      setForm((prev) => ({ ...prev, notes: "", customPrice: "", status: "Completed" }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al guardar el turno");
     } finally {
@@ -235,6 +244,7 @@ export function AppointmentsPanel() {
                   onChange={(event) => setForm({ ...form, insuranceProviderId: event.target.value })}
                 >
                   <option value="">Usar la del paciente</option>
+                  <option value={particularOptionValue}>Particular (sin obra social)</option>
                   {insurances.map((insurance) => (
                     <option key={insurance.id} value={insurance.id}>
                       {insurance.name}

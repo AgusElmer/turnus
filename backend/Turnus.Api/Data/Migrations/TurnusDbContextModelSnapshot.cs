@@ -192,6 +192,33 @@ namespace Turnus.Api.Data.Migrations
                     b.ToTable("Practices");
                 });
 
+            modelBuilder.Entity("Turnus.Api.Domain.PracticePrice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("InsuranceProviderId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PracticeId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InsuranceProviderId");
+
+                    b.HasIndex("PracticeId", "InsuranceProviderId")
+                        .IsUnique();
+
+                    b.ToTable("PracticePrices");
+                });
+
             modelBuilder.Entity("Turnus.Api.Domain.Appointment", b =>
                 {
                     b.HasOne("Turnus.Api.Domain.InsuranceProvider", "InsuranceProvider")
@@ -232,6 +259,8 @@ namespace Turnus.Api.Data.Migrations
                     b.Navigation("Appointments");
 
                     b.Navigation("Patients");
+
+                    b.Navigation("PracticePrices");
                 });
 
             modelBuilder.Entity("Turnus.Api.Domain.Patient", b =>
@@ -242,6 +271,26 @@ namespace Turnus.Api.Data.Migrations
             modelBuilder.Entity("Turnus.Api.Domain.Practice", b =>
                 {
                     b.Navigation("Appointments");
+
+                    b.Navigation("Prices");
+                });
+
+            modelBuilder.Entity("Turnus.Api.Domain.PracticePrice", b =>
+                {
+                    b.HasOne("Turnus.Api.Domain.InsuranceProvider", "InsuranceProvider")
+                        .WithMany("PracticePrices")
+                        .HasForeignKey("InsuranceProviderId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Turnus.Api.Domain.Practice", "Practice")
+                        .WithMany("Prices")
+                        .HasForeignKey("PracticeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InsuranceProvider");
+
+                    b.Navigation("Practice");
                 });
 #pragma warning restore 612, 618
         }
