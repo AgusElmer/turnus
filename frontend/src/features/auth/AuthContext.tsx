@@ -17,7 +17,6 @@ interface AuthContextValue extends AuthState {
   isAuthenticated: boolean;
   signInWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
-  authDisabled: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -40,7 +39,6 @@ function decodeJwt(token: string): AuthUser {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const authDisabled = import.meta.env.VITE_AUTH_DISABLED === "true";
   const [state, setState] = useState<AuthState>({ token: null, user: null });
   const [loading, setLoading] = useState(true);
 
@@ -59,21 +57,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(false);
   }, []);
-
-  useEffect(() => {
-    if (authDisabled && !state.user) {
-      const devUser: AuthState = {
-        token: null,
-        user: {
-          name: "Modo desarrollo",
-          email: "dev@localhost",
-        },
-      };
-      setState(devUser);
-      setAuthToken(null);
-      setLoading(false);
-    }
-  }, [authDisabled, state.user]);
 
   const persistState = useCallback((next: AuthState | null) => {
     if (next && next.token) {
@@ -125,12 +108,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       token: state.token,
       user: state.user,
       loading,
-      isAuthenticated: !!state.user || authDisabled,
+      isAuthenticated: !!state.user,
       signInWithGoogle,
       logout,
-      authDisabled,
     }),
-    [state.token, state.user, loading, signInWithGoogle, logout, authDisabled],
+    [state.token, state.user, loading, signInWithGoogle, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

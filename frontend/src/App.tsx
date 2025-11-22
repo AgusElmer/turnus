@@ -18,7 +18,7 @@ const sections = [
 ] as const;
 
 export default function App() {
-  const { user, isAuthenticated, loading, logout, authDisabled } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("agenda");
   const ActiveComponent = useMemo(() => sections.find((section) => section.id === activeSection)?.component ?? AppointmentsPanel, [activeSection]);
@@ -27,7 +27,7 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Verificando sesión...</div>;
   }
 
-  if (!isAuthenticated && !authDisabled) {
+  if (!isAuthenticated) {
     return <LoginScreen />;
   }
 

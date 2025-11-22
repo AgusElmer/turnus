@@ -1,23 +1,36 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Turnus.Api.Auth;
 using Turnus.Api.Data;
 using Turnus.Api.Seed;
+using Turnus.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// For local development, use .NET User Secrets to store your connection string.
+// See: https://go.microsoft.com/fwlink/?linkid=2131348
 var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? builder.Configuration["DATABASE_URL"]
-    ?? "Host=localhost;Port=5432;Database=turnus;Username=postgres;Password=postgres";
+    ?? builder.Configuration["DATABASE_URL"];
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Database connection string is not configured. Please set 'ConnectionStrings:Default' or 'DATABASE_URL'.");
+}
 
 builder.Services.AddDbContext<TurnusDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<IAppointmentService, AppointmentService>();
+builder.Services.AddScoped<IPatientService, PatientService>();
+builder.Services.AddScoped<IPracticeService, PracticeService>();
+builder.Services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
+builder.Services.AddScoped<IBillingService, BillingService>();
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -27,6 +40,8 @@ builder.Services
     {
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
 var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 var corsOrigins = configuredOrigins.Length > 0
@@ -50,44 +65,35 @@ var allowedEmailSet = (builder.Configuration.GetSection("Authentication:Google:A
     .Select(value => value.Trim())
     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-var googleAuthEnabled = !string.IsNullOrWhiteSpace(googleClientId);
+if (string.IsNullOrWhiteSpace(googleClientId))
+{
+    throw new InvalidOperationException("Google authentication is not configured. Please set 'Authentication:Google:ClientId' in your configuration.");
+}
 
-if (googleAuthEnabled)
-{
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = "https://accounts.google.com";
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.Authority = "https://accounts.google.com";
-            options.RequireHttpsMetadata = true;
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidIssuers = new[] { "https://accounts.google.com", "accounts.google.com" },
-                ValidateAudience = true,
-                ValidAudience = googleClientId,
-                ValidateLifetime = true
-            };
-        });
-}
-else
-{
-    builder.Services
-        .AddAuthentication(DevelopmentAuthenticationHandler.SchemeName)
-        .AddScheme<AuthenticationSchemeOptions, DevelopmentAuthenticationHandler>(
-            DevelopmentAuthenticationHandler.SchemeName,
-            _ => { });
-}
+            ValidateIssuer = true,
+            ValidIssuers = new[] { "https://accounts.google.com", "accounts.google.com" },
+            ValidateAudience = true,
+            ValidAudience = googleClientId,
+            ValidateLifetime = true
+        };
+    });
+
 
 builder.Services.AddAuthorization(options =>
 {
-    var policyBuilder = googleAuthEnabled
-        ? new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme)
-        : new AuthorizationPolicyBuilder(DevelopmentAuthenticationHandler.SchemeName);
+    var policyBuilder = new AuthorizationPolicyBuilder(JwtBearerDefaults.AuthenticationScheme);
 
     policyBuilder.RequireAuthenticatedUser();
 
-    if (googleAuthEnabled && allowedEmailSet.Count > 0)
+    if (allowedEmailSet.Count > 0)
     {
         policyBuilder.RequireAssertion(context =>
         {
