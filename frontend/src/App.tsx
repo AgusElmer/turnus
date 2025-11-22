@@ -7,6 +7,7 @@ import { InsurancesPanel } from "@/features/insurances/InsurancesPanel";
 import { BillingPanel } from "@/features/billing/BillingPanel";
 import { useAuth } from "@/features/auth/AuthContext";
 import { LoginScreen } from "@/features/auth/LoginScreen";
+import { useTheme } from "@/features/theme/ThemeContext";
 
 const sections = [
   { id: "agenda", label: "Agenda", description: "Turnos del día", component: AppointmentsPanel },
@@ -18,6 +19,7 @@ const sections = [
 
 export default function App() {
   const { user, isAuthenticated, loading, logout, authDisabled } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("agenda");
   const ActiveComponent = useMemo(() => sections.find((section) => section.id === activeSection)?.component ?? AppointmentsPanel, [activeSection]);
 
@@ -48,6 +50,9 @@ export default function App() {
                 {section.label}
               </Button>
             ))}
+            <Button variant="ghost" size="sm" onClick={toggleTheme}>
+              {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            </Button>
             {user && (
               <div className="ml-2 flex items-center gap-3 rounded-full border px-3 py-1 text-sm">
                 {user.picture && <img src={user.picture} alt={user.name} className="h-8 w-8 rounded-full" />}
