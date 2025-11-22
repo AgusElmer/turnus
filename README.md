@@ -26,6 +26,27 @@ Turnus.sln            -> Solución .NET
 Dockerfile(s)         -> backend/frontend/ para despliegue
 ```
 
+## Arquitectura
+
+La aplicación sigue una arquitectura de N-capas con una clara separación de responsabilidades:
+
+### Backend
+
+- **API Controllers**: Responsables de manejar las solicitudes HTTP, validar la entrada y orquestar las operaciones. Son "delgados" y delegan la lógica de negocio a los servicios.
+- **Services**: Contienen la lógica de negocio principal de la aplicación. Se comunican con la capa de datos para realizar operaciones CRUD y ejecutar reglas de negocio.
+- **Validators**: Usan FluentValidation para definir y aplicar reglas de validación a los DTOs de entrada, asegurando la integridad de los datos.
+- **Data (DbContext)**: Utiliza Entity Framework Core para el acceso a datos y la gestión del esquema de la base de datos a través de migraciones.
+- **Domain**: Contiene las entidades principales del modelo de datos.
+- **Contracts (DTOs)**: Definen la forma de los datos que se transfieren entre el cliente y el servidor.
+
+### Frontend
+
+- **Features**: Cada área funcional (pacientes, prácticas, etc.) está organizada en su propio directorio.
+- **Components**: Componentes de React reutilizables y específicos de cada feature. Los componentes de UI genéricos se encuentran en `src/components/ui`.
+- **Hooks**: Hooks personalizados que encapsulan la lógica de acceso a la API y el manejo del estado para cada feature (ej. `usePatients`, `usePractices`).
+- **State Management**: El estado se gestiona a nivel de componente con `useState` y se comparte a través de hooks personalizados. Para el manejo de formularios se utiliza `react-hook-form`.
+- **API Layer**: Un cliente de API centralizado en `src/lib/api.ts` maneja todas las solicitudes HTTP al backend.
+
 ## Configuración inicial (.env)
 
 1. Copiá `.env.example` a `.env` y completa los valores:
@@ -33,7 +54,6 @@ Dockerfile(s)         -> backend/frontend/ para despliegue
    - `ConnectionStrings__Default` para que la API se conecte al contenedor de PostgreSQL.
    - `Authentication__Google__ClientId` + `Authentication__Google__AllowedEmails__0` (uno por usuario permitido).
    - `VITE_API_BASE_URL` y `VITE_GOOGLE_CLIENT_ID` para que el frontend apunte al backend y a tu OAuth client.
-   - En desarrollo podés dejar `VITE_AUTH_DISABLED=true` para saltar el login.
 2. (Opcional) crea `frontend/.env` si querés diferentes valores locales para Vite.
 
 ## Ejecutar en modo desarrollo
@@ -62,8 +82,6 @@ npm run dev # expone http://localhost:5173
 
 Configura `VITE_API_BASE_URL` en un archivo `.env` (por ejemplo `VITE_API_BASE_URL=http://localhost:8080`).
 
-Si vas a probar el login real, agrega también `VITE_GOOGLE_CLIENT_ID` y elimina `VITE_AUTH_DISABLED`.
-
 ### Base de datos y herramientas
 
 ```bash
@@ -81,9 +99,8 @@ La API valida tokens de Google (ID Token) directamente. Pasos:
 3. Agrega como orígenes/URIs autorizados las URLs donde correrá el frontend (`http://localhost:5173`, `https://turnus.tu-dominio.com`, etc.).
 4. Copia el `Client ID` en `Authentication__Google__ClientId` y `VITE_GOOGLE_CLIENT_ID`.
 5. Lista los correos permitidos en `Authentication__Google__AllowedEmails__0`, `AllowedEmails__1`, etc. Las solicitudes rechazadas por la API responden 401.
-6. En producción deja `VITE_AUTH_DISABLED=false` para obligar al inicio de sesión.
 
-El backend aplica la política `[Authorize]` en todos los controladores y sólo acepta las cuentas configuradas. En desarrollo (sin ClientId) se usa un handler interno quick-start para no bloquearte.
+El backend aplica la política `[Authorize]` en todos los controladores y sólo acepta las cuentas configuradas.
 
 ## Docker Compose (todo el stack)
 
