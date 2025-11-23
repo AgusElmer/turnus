@@ -22,6 +22,7 @@
         Authentication__Google__ClientId: ${Authentication__Google__ClientId}
         Authentication__Google__AllowedEmails__0: ${Authentication__Google__AllowedEmails__0}
         Authentication__Google__AllowedEmails__1: ${Authentication__Google__AllowedEmails__1}
+        Authentication__Google__AllowedEmails__2: ${Authentication__Google__AllowedEmails__2}
         Database__SeedDemoData: ${Database__SeedDemoData}
       ports:
         - "127.0.0.1:8080:8080"   # only host can reach
