@@ -43,7 +43,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    if (response.status === 401 && unauthorizedHandler) {
+    if ((response.status === 401 || response.status === 403) && unauthorizedHandler) {
       unauthorizedHandler();
     }
 

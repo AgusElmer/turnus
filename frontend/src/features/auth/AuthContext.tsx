@@ -23,6 +23,12 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const STORAGE_KEY = "turnus.auth";
 
+const allowedEmails =
+  ((import.meta.env.VITE_ALLOWED_EMAILS as string | undefined) ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
 function decodeJwt(token: string): AuthUser {
   try {
     const [, payload] = token.split(".");
@@ -76,6 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user.email) {
         throw new Error("No se pudo leer el email del usuario");
       }
+
+       const normalizedEmail = user.email.trim().toLowerCase();
+       if (allowedEmails.length > 0 && !allowedEmails.includes(normalizedEmail)) {
+         throw new Error("Tu cuenta no está autorizada para acceder.");
+       }
 
       const nextState: AuthState = {
         token: credential,
