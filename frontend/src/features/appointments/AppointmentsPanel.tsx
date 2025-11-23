@@ -17,11 +17,20 @@ export function AppointmentsPanel() {
     const handleCreateAppointment = async (data: any) => {
         setSaving(true);
         try {
+            const isParticular = data.insuranceProviderId === "particular";
+            const selectedInsuranceId =
+                data.insuranceProviderId === ""
+                    ? undefined
+                    : isParticular
+                        ? null
+                        : Number(data.insuranceProviderId);
+
             await createAppointment({
                 ...data,
                 patientId: Number(data.patientId),
                 practiceId: Number(data.practiceId),
-                insuranceProviderId: data.insuranceProviderId === "" || data.insuranceProviderId === "particular" ? undefined : Number(data.insuranceProviderId),
+                insuranceProviderId: selectedInsuranceId,
+                usePatientInsurance: !isParticular,
                 customPrice: data.customPrice ? Number(data.customPrice) : undefined,
             });
         } finally {

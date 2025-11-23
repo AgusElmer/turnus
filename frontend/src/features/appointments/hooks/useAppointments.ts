@@ -31,7 +31,7 @@ export function useAppointments(initialFilters: { from: string; to: string; insu
         try {
             const finalPayload = {
                 ...payload,
-                usePatientInsurance: payload.insuranceProviderId !== "particular",
+                usePatientInsurance: payload.usePatientInsurance ?? payload.insuranceProviderId !== "particular",
             };
             const created = await api.createAppointment(finalPayload);
             setAppointments((prev) => [created, ...prev]);

@@ -77,7 +77,7 @@ public class AppointmentService : IAppointmentService
         _dbContext.Appointments.Add(appointment);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return appointment;
+        return await GetAppointmentByIdAsync(appointment.Id, cancellationToken) ?? appointment;
     }
 
     public async Task<Appointment?> UpdateAppointmentAsync(int id, UpdateAppointmentRequest request, CancellationToken cancellationToken)
@@ -100,7 +100,7 @@ public class AppointmentService : IAppointmentService
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        return appointment;
+        return await GetAppointmentByIdAsync(appointment.Id, cancellationToken);
     }
 
     public async Task<bool> DeleteAppointmentAsync(int id, CancellationToken cancellationToken)
