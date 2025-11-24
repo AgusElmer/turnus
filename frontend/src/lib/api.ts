@@ -102,6 +102,8 @@ export interface InsuranceProvider {
 export interface Appointment {
   id: number;
   serviceDate: string;
+  serviceTime: string;
+  durationMinutes: number;
   status: "Scheduled" | "Completed" | "Cancelled";
   customPrice?: number | null;
   amount: number;

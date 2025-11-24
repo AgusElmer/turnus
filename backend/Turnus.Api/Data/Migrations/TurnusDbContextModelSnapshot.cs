@@ -55,6 +55,14 @@ namespace Turnus.Api.Data.Migrations
                     b.Property<DateOnly>("ServiceDate")
                         .HasColumnType("date");
 
+                    b.Property<TimeOnly>("ServiceTime")
+                        .HasColumnType("time")
+                        .HasDefaultValue(new TimeOnly(0, 0));
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("integer")
+                        .HasDefaultValue(15);
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -66,7 +74,7 @@ namespace Turnus.Api.Data.Migrations
 
                     b.HasIndex("PracticeId");
 
-                    b.HasIndex("ServiceDate");
+                    b.HasIndex("ServiceDate", "ServiceTime");
 
                     b.ToTable("Appointments");
                 });

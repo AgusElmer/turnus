@@ -18,6 +18,7 @@ export function AppointmentsPanel() {
         setSaving(true);
         try {
             const isParticular = data.insuranceProviderId === "particular";
+            const normalizedTime = typeof data.serviceTime === "string" && data.serviceTime.length === 5 ? `${data.serviceTime}:00` : data.serviceTime;
             const selectedInsuranceId =
                 data.insuranceProviderId === ""
                     ? undefined
@@ -29,6 +30,7 @@ export function AppointmentsPanel() {
                 ...data,
                 patientId: Number(data.patientId),
                 practiceId: Number(data.practiceId),
+                serviceTime: normalizedTime,
                 insuranceProviderId: selectedInsuranceId,
                 usePatientInsurance: !isParticular,
                 customPrice: data.customPrice ? Number(data.customPrice) : undefined,

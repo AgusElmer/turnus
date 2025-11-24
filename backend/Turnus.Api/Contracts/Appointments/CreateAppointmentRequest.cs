@@ -7,6 +7,8 @@ public record CreateAppointmentRequest(
     [param: Required] int PatientId,
     [param: Required] int PracticeId,
     [param: Required] DateOnly ServiceDate,
+    [param: Required] TimeOnly ServiceTime,
+    [param: Range(5, 480)] int? DurationMinutes = null,
     AppointmentStatus Status = AppointmentStatus.Completed,
     int? InsuranceProviderId = null,
     bool UsePatientInsurance = true,

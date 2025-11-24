@@ -5,6 +5,8 @@ namespace Turnus.Api.Contracts.Appointments;
 public record AppointmentDto(
     int Id,
     DateOnly ServiceDate,
+    TimeOnly ServiceTime,
+    int DurationMinutes,
     AppointmentStatus Status,
     decimal? CustomPrice,
     decimal Amount,
@@ -22,6 +24,8 @@ public record AppointmentDto(
         return new AppointmentDto(
             appointment.Id,
             appointment.ServiceDate,
+            appointment.ServiceTime,
+            appointment.DurationMinutes,
             appointment.Status,
             appointment.CustomPrice,
             appointment.BilledAmount,

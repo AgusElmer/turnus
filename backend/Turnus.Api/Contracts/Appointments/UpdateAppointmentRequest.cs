@@ -5,6 +5,8 @@ namespace Turnus.Api.Contracts.Appointments;
 
 public record UpdateAppointmentRequest(
     [param: Required] DateOnly ServiceDate,
+    [param: Required] TimeOnly ServiceTime,
+    [param: Range(5, 480)] int? DurationMinutes = null,
     AppointmentStatus Status = AppointmentStatus.Completed,
     int? InsuranceProviderId = null,
     bool UsePatientInsurance = true,

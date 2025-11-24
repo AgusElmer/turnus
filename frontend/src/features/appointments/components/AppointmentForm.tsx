@@ -8,12 +8,27 @@ import { type Patient, type Practice, type InsuranceProvider } from "@/lib/api";
 
 const today = new Date().toISOString().split("T")[0];
 const particularOptionValue = "particular";
+const defaultDurationMinutes = 15;
+const slotStepSeconds = defaultDurationMinutes * 60;
+
+function getRoundedCurrentTime() {
+    const now = new Date();
+    now.setSeconds(0, 0);
+
+    const remainder = now.getMinutes() % defaultDurationMinutes;
+    if (remainder > 0) {
+        now.setMinutes(now.getMinutes() + (defaultDurationMinutes - remainder));
+    }
+
+    return now.toTimeString().slice(0, 5);
+}
 
 interface AppointmentFormInputs {
     patientId: string;
     practiceId: string;
     insuranceProviderId: string;
     serviceDate: string;
+    serviceTime: string;
     status: "Completed" | "Scheduled" | "Cancelled";
     customPrice: string;
     notes: string;
@@ -35,6 +50,7 @@ export function AppointmentForm({ patients, practices, insurances, onSubmit, sav
             practiceId: "",
             insuranceProviderId: "",
             serviceDate: today,
+            serviceTime: getRoundedCurrentTime(),
             status: "Completed",
             customPrice: "",
             notes: "",
@@ -69,7 +85,7 @@ export function AppointmentForm({ patients, practices, insurances, onSubmit, sav
                             ))}
                         </select>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                         <div className="space-y-2">
                             <Label htmlFor="practiceId">Práctica</Label>
                             <select
@@ -93,8 +109,17 @@ export function AppointmentForm({ patients, practices, insurances, onSubmit, sav
                                 {...register("serviceDate", { required: true })}
                             />
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="serviceTime">Hora</Label>
+                            <Input
+                                id="serviceTime"
+                                type="time"
+                                step={slotStepSeconds}
+                                {...register("serviceTime", { required: true })}
+                            />
+                        </div>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-3">
                         <div className="space-y-2">
                             <Label htmlFor="insuranceProviderId">Obra social</Label>
                             <select

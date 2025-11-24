@@ -59,9 +59,11 @@ public class TurnusDbContext(DbContextOptions<TurnusDbContext> options) : DbCont
         modelBuilder.Entity<Appointment>(entity =>
         {
             entity.Property(a => a.ServiceDate).HasColumnType("date");
+            entity.Property(a => a.ServiceTime).HasColumnType("time").HasDefaultValue(TimeOnly.MinValue);
+            entity.Property(a => a.DurationMinutes).HasDefaultValue(15);
             entity.Property(a => a.CustomPrice).HasColumnType("numeric(10,2)");
             entity.Property(a => a.BilledAmount).HasColumnType("numeric(10,2)");
-            entity.HasIndex(a => a.ServiceDate);
+            entity.HasIndex(a => new { a.ServiceDate, a.ServiceTime });
 
             entity.HasOne(a => a.Patient)
                 .WithMany(p => p.Appointments)

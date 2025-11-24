@@ -22,6 +22,13 @@ function formatDisplayDate(value: string) {
     return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(localDate);
 }
 
+function formatDisplayTime(time: string) {
+    const [hours, minutes] = time.split(":").map((part) => Number.parseInt(part, 10));
+    const hh = (hours ?? 0).toString().padStart(2, "0");
+    const mm = (minutes ?? 0).toString().padStart(2, "0");
+    return `${hh}:${mm}`;
+}
+
 interface AppointmentsListProps {
     appointments: Appointment[];
     onStatusChange: (appointment: Appointment, status: Appointment["status"]) => void;
@@ -55,6 +62,7 @@ export function AppointmentsList({ appointments, onStatusChange, updatingId }: A
                 <TableHeader>
                     <TableRow>
                         <TableHead>Fecha</TableHead>
+                        <TableHead>Horario</TableHead>
                         <TableHead>Paciente</TableHead>
                         <TableHead>Práctica</TableHead>
                         <TableHead>Obra social</TableHead>
@@ -66,6 +74,9 @@ export function AppointmentsList({ appointments, onStatusChange, updatingId }: A
                     {appointments.map((appointment) => (
                         <TableRow key={appointment.id}>
                             <TableCell>{formatDisplayDate(appointment.serviceDate)}</TableCell>
+                            <TableCell>
+                                <span className="font-medium">{formatDisplayTime(appointment.serviceTime)}</span>
+                            </TableCell>
                             <TableCell className="font-medium">{appointment.patientName}</TableCell>
                             <TableCell>{appointment.practiceName}</TableCell>
                             <TableCell>{appointment.insuranceProviderName ?? "Particular"}</TableCell>

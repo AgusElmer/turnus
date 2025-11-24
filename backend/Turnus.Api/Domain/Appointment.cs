@@ -4,6 +4,8 @@ public class Appointment
 {
     public int Id { get; set; }
     public DateOnly ServiceDate { get; set; }
+    public TimeOnly ServiceTime { get; set; } = TimeOnly.MinValue;
+    public int DurationMinutes { get; set; } = 15;
     public AppointmentStatus Status { get; set; } = AppointmentStatus.Completed;
     public decimal? CustomPrice { get; set; }
     public decimal BilledAmount { get; set; }

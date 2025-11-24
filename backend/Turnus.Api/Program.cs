@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Turnus.Api.Data;
+using Turnus.Api.Options;
 using Turnus.Api.Seed;
 using Turnus.Api.Services;
 
@@ -26,6 +28,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<TurnusDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+builder.Services.Configure<AppointmentOptions>(builder.Configuration.GetSection("Appointments"));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<AppointmentOptions>>().Value);
 builder.Services.AddScoped<IAppointmentService, AppointmentService>();
 builder.Services.AddScoped<IPatientService, PatientService>();
 builder.Services.AddScoped<IPracticeService, PracticeService>();

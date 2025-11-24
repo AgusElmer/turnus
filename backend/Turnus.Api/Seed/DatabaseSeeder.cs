@@ -93,6 +93,8 @@ public static class DatabaseSeeder
             Practice = echo,
             InsuranceProvider = swiss,
             ServiceDate = DateOnly.FromDateTime(DateTime.Today),
+            ServiceTime = new TimeOnly(9, 0),
+            DurationMinutes = 15,
             Status = AppointmentStatus.Completed,
             CustomPrice = null,
             BilledAmount = echo.DefaultPrice,

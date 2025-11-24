@@ -2,16 +2,19 @@ using Microsoft.EntityFrameworkCore;
 using Turnus.Api.Contracts.Appointments;
 using Turnus.Api.Data;
 using Turnus.Api.Domain;
+using Turnus.Api.Options;
 
 namespace Turnus.Api.Services;
 
 public class AppointmentService : IAppointmentService
 {
     private readonly TurnusDbContext _dbContext;
+    private readonly AppointmentOptions _appointmentOptions;
 
-    public AppointmentService(TurnusDbContext dbContext)
+    public AppointmentService(TurnusDbContext dbContext, AppointmentOptions appointmentOptions)
     {
         _dbContext = dbContext;
+        _appointmentOptions = appointmentOptions;
     }
 
     public async Task<IEnumerable<Appointment>> GetAppointmentsAsync(DateOnly? from, DateOnly? to, int? insuranceProviderId, CancellationToken cancellationToken)
@@ -40,6 +43,7 @@ public class AppointmentService : IAppointmentService
 
         return await query
             .OrderBy(a => a.ServiceDate)
+            .ThenBy(a => a.ServiceTime)
             .ThenBy(a => a.Patient.LastName)
             .ToListAsync(cancellationToken);
     }
@@ -68,6 +72,8 @@ public class AppointmentService : IAppointmentService
             PracticeId = request.PracticeId,
             InsuranceProviderId = appointmentInsuranceProviderId,
             ServiceDate = request.ServiceDate,
+            ServiceTime = request.ServiceTime,
+            DurationMinutes = _appointmentOptions.DefaultDurationMinutes,
             Status = request.Status,
             CustomPrice = request.CustomPrice,
             BilledAmount = billedAmount,
@@ -92,6 +98,8 @@ public class AppointmentService : IAppointmentService
         }
 
         appointment.ServiceDate = request.ServiceDate;
+        appointment.ServiceTime = request.ServiceTime;
+        appointment.DurationMinutes = _appointmentOptions.DefaultDurationMinutes;
         appointment.Status = request.Status;
         appointment.Notes = request.Notes;
         appointment.InsuranceProviderId = request.UsePatientInsurance ? (request.InsuranceProviderId ?? appointment.Patient.InsuranceProviderId) : null;
@@ -143,4 +151,5 @@ public class AppointmentService : IAppointmentService
             .Select(practice => practice.DefaultPrice)
             .FirstAsync(cancellationToken);
     }
+
 }
