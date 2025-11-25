@@ -85,7 +85,7 @@ export function AppointmentForm({ patients, practices, insurances, onSubmit, sav
                             ))}
                         </select>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="practiceId">Práctica</Label>
                             <select
@@ -119,7 +119,7 @@ export function AppointmentForm({ patients, practices, insurances, onSubmit, sav
                             />
                         </div>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="insuranceProviderId">Obra social</Label>
                             <select

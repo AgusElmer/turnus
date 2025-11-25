@@ -7,6 +7,11 @@ export function useAppointments(initialFilters: { from: string; to: string; insu
     const [error, setError] = useState<string | null>(null);
     const [filters, setFilters] = useState(initialFilters);
 
+    const parseDateOnly = useCallback((value: string) => {
+        const [year, month, day] = value.split("-").map((part) => Number.parseInt(part, 10));
+        return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1).getTime();
+    }, []);
+
     const sortAppointmentsByDateTime = useCallback((items: Appointment[]) => {
         const parseDateTime = (appointment: Appointment) => {
             const [year, month, day] = appointment.serviceDate.split("T")[0]?.split("-").map((part) => Number.parseInt(part, 10));
@@ -20,6 +25,23 @@ export function useAppointments(initialFilters: { from: string; to: string; insu
             return a.patientName.localeCompare(b.patientName);
         });
     }, []);
+
+    const isWithinFilters = useCallback((appointment: Appointment) => {
+        const dateOnly = appointment.serviceDate.split("T")[0];
+        const appointmentDate = parseDateOnly(dateOnly);
+
+        if (filters.from) {
+            const fromDate = parseDateOnly(filters.from);
+            if (appointmentDate < fromDate) return false;
+        }
+
+        if (filters.to) {
+            const toDate = parseDateOnly(filters.to);
+            if (appointmentDate > toDate) return false;
+        }
+
+        return true;
+    }, [filters, parseDateOnly]);
 
     const loadAppointments = useCallback(async () => {
         try {
@@ -48,12 +70,14 @@ export function useAppointments(initialFilters: { from: string; to: string; insu
                 usePatientInsurance: payload.usePatientInsurance ?? payload.insuranceProviderId !== "particular",
             };
             const created = await api.createAppointment(finalPayload);
-            setAppointments((prev) => sortAppointmentsByDateTime([created, ...prev]));
+            setAppointments((prev) =>
+                isWithinFilters(created) ? sortAppointmentsByDateTime([created, ...prev]) : prev
+            );
         } catch (err) {
             setError(err instanceof Error ? err.message : "Error al guardar el turno");
             throw err;
         }
-    }, [sortAppointmentsByDateTime]);
+    }, [isWithinFilters, sortAppointmentsByDateTime]);
 
     const updateAppointmentStatus = useCallback(async (appointment: Appointment, status: Appointment["status"]) => {
         try {
