@@ -148,4 +148,27 @@ dotnet ef database update --project Turnus.Api/Turnus.Api.csproj --startup-proje
 4. **Alertas**: recordatorios por WhatsApp/mail usando servicios externos (Twilio, Sendgrid, etc.).
 5. **Observabilidad**: añadir logs estructurados (Serilog) y métricas básicas para monitorear la VM.
 
-Con esto ya puedes correr el entorno completo, practicar flujos típicos y seguir iterando con tecnología moderna.
+# Turnus – Nginx & Certbot setup (Ubuntu VM)
+
+- Domain: `turnus-consultorio.com`
+- App: Turnus (web + API)
+
+## Nginx
+
+- Web site config:
+  - `/etc/nginx/sites-available/turnus-web`
+  - Enabled via symlink in `/etc/nginx/sites-enabled/turnus-web`
+- API site config:
+  - `/etc/nginx/sites-available/turnus-api`
+  - Enabled via symlink in `/etc/nginx/sites-enabled/turnus-api`
+
+## TLS / Certbot
+
+- Live cert + key:
+  - `/etc/letsencrypt/live/turnus-consultorio.com/fullchain.pem`
+  - `/etc/letsencrypt/live/turnus-consultorio.com/privkey.pem`
+- Nginx SSL options:
+  - `/etc/letsencrypt/options-ssl-nginx.conf`
+  - `/etc/letsencrypt/ssl-dhparams.pem`
+- Renewal config:
+  - `/etc/letsencrypt/renewal/turnus-consultorio.com.conf`
