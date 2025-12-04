@@ -71,3 +71,27 @@ export default defineConfig([
   },
 ])
 ```
+# Turnus – Nginx & Certbot setup (Ubuntu VM)
+
+- Domain: `turnus-consultorio.com`
+- App: Turnus (web + API)
+
+## Nginx
+
+- Web site config:
+  - `/etc/nginx/sites-available/turnus-web`
+  - Enabled via symlink in `/etc/nginx/sites-enabled/turnus-web`
+- API site config:
+  - `/etc/nginx/sites-available/turnus-api`
+  - Enabled via symlink in `/etc/nginx/sites-enabled/turnus-api`
+
+## TLS / Certbot
+
+- Live cert + key:
+  - `/etc/letsencrypt/live/turnus-consultorio.com/fullchain.pem`
+  - `/etc/letsencrypt/live/turnus-consultorio.com/privkey.pem`
+- Nginx SSL options:
+  - `/etc/letsencrypt/options-ssl-nginx.conf`
+  - `/etc/letsencrypt/ssl-dhparams.pem`
+- Renewal config:
+  - `/etc/letsencrypt/renewal/turnus-consultorio.com.conf`
